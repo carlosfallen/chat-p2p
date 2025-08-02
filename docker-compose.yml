@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  discovery-server:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - CORS_ORIGIN=http://localhost:5173
+      - MAX_PEERS_PER_ROOM=50
+      - HEARTBEAT_INTERVAL=30000
+      - RATE_LIMIT_WINDOW=60000
+      - RATE_LIMIT_MAX=1000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_DISCOVERY_SERVER=http://localhost:3001
+      - VITE_MAX_MESSAGE_SIZE=16384
+      - VITE_MAX_PEERS=10
+      - VITE_RECONNECT_ATTEMPTS=5
+      - VITE_HEARTBEAT_INTERVAL=30000
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  default:
+    name: p2p-chat-network
